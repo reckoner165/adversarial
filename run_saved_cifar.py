@@ -8,9 +8,12 @@ from keras.datasets import cifar10
 # from keras.layers import Dense, Dropout, Activation, Flatten
 # from keras.layers import Conv2D, MaxPooling2D
 from keras.models import model_from_json
+import h5py
+
 # import numpy
 # import scipy
 
+num_classes = 10
 # The data, shuffled and split between train and test sets:
 (x_train, y_train), (x_test, y_test) = cifar10.load_data()
 print('x_train shape:', x_train.shape)

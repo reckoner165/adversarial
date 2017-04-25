@@ -68,7 +68,7 @@ print(cross)
 
 # Let's do L2 norm because it's easy (ffs!)
 
-epsilon = 15
+epsilon = 5
 b_init = numpy.zeros(input_shape)
 
 b = b_init
@@ -78,29 +78,29 @@ J_init = numpy.sum(pred_x*numpy.log2(pred_perturb))
 print('J_init: ', J_init)
 
 # test_range = x_test.shape[0]
-test_range = 20
+test_range = 300
 
 J = numpy.zeros(test_range)
 b = numpy.random.random(input_shape)
 b = epsilon*b/numpy.linalg.norm(b)
-# print(b)
-# for i in range(0,test_range):
-#     pred_x = loaded_model.predict(numpy.expand_dims(x_test[i], axis=0))
-#     pred_perturb = loaded_model.predict(numpy.expand_dims((x_test[i] + b), axis=0))
-#     J[i] = numpy.sum(pred_x*numpy.log2(pred_perturb))
-#     print('J', i,': ', J[i])
-
-# slope = ()
-
 
 # Let's try scipy optimize minimize
 
 def cross_ent(b):
     b = numpy.reshape(b,input_shape)
-    pred_x = loaded_model.predict(numpy.expand_dims(x_test[i], axis=0))
-    pred_perturb = loaded_model.predict(numpy.expand_dims((x_test[i] + b), axis=0))
-    J = numpy.sum(pred_x*numpy.log2(pred_perturb + 0.0000000001*numpy.ones(pred_perturb.shape)))
-    return J
+    J = 0
+    for iter in range(0,test_range):
+        pred_x = loaded_model.predict(numpy.expand_dims(x_test[iter], axis=0))
+        pred_perturb = loaded_model.predict(numpy.expand_dims((x_test[iter] + b), axis=0))
+
+        # Noise term to avoid zero error in the log function
+        avoid_zeros = 0.0000000001*numpy.ones(pred_perturb.shape)
+
+        y_log_p = pred_x*numpy.log2(pred_perturb + avoid_zeros)
+        one_minus = (1-pred_x)*numpy.log2((1-pred_perturb) + avoid_zeros)
+
+        J = J + numpy.sum(y_log_p + one_minus)
+    return J/test_range
 
 
 def constraint(b):
@@ -116,35 +116,25 @@ print('Performance for unperturbed data:')
 new_score = loaded_model.evaluate(x_mini_test, y_mini_test, verbose=1)
 print("%s: %.2f%%" % (loaded_model.metrics_names[1], new_score[1]*100))
 
-for i in range(0,test_range):
+
+
+
+
+epochs = 10
+for i in range(0, epochs):
     print('Starting ',i)
     sol = spo.minimize(cross_ent, b_init, constraints=cons)
-    # b_init = epsilon*sol.x/numpy.linalg.norm(sol.x)
-    b_init = sol.x
+    b_init = epsilon*sol.x/numpy.linalg.norm(sol.x)
+
     print('Iteration ',i, ' completed.')
+    for k in range(0,test_range):
+        # y_mini_test[i] = loaded_model.predict(numpy.expand_dims(x_mini_test[i], axis = 0))
+        x_mini_perturbed[k] = x_mini_perturbed[k] + numpy.reshape(b, input_shape)
 
+    # Testing the perturbation in the network
+    print('Performance for perturbed data:')
+    new_score = loaded_model.evaluate(x_mini_perturbed, y_mini_test, verbose=1)
+    print("%s: %.2f%%" % (loaded_model.metrics_names[1], new_score[1]*100))
 
-# print(sol)
-# print(sol.x.shape)
-
-
-# Testing the perturbation
-
-# x_mini_test will be the perturbation
-# y_mini_test will be output of unperturbed x -- NO. THIS HAS BEEN DISABLED. y_mini_test is the label.
-
-
-for i in range(0,test_range):
-    # y_mini_test[i] = loaded_model.predict(numpy.expand_dims(x_mini_test[i], axis = 0))
-    x_mini_perturbed[i] = x_mini_perturbed[i] + numpy.reshape(sol.x, input_shape)
-
-
-
-print('Performance for perturbed data:')
-new_score = loaded_model.evaluate(x_mini_perturbed, y_mini_test, verbose=1)
-print("%s: %.2f%%" % (loaded_model.metrics_names[1], new_score[1]*100))
-
-print('Norm of perturbation', numpy.linalg.norm(sol.x))
-
-scipy.misc.imsave('unperturbed.jpg',x_mini_test[0])
-scipy.misc.imsave('perturbed.jpg',x_mini_perturbed[0])
+    print('Norm of perturbation', numpy.linalg.norm(b))
+    print('----')
